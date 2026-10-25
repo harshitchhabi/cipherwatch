@@ -47,6 +47,43 @@ python qr_tool/inspect.py --from-decode sentinel_qr_0007.png
 
 JSON output is available on both via `--json`.
 
+## Generate (`generate.py`)
+
+Encrypt a plaintext into a Fernet token and emit a QR for
+`https://96269.in/?cipher=<token>`. **The key is never hardcoded** — pass
+`--key` or set `$FERNET_KEY` (a urlsafe-base64 32-byte key). Without the real
+server key you can still build a structurally valid token/QR with any key
+(e.g. a throwaway `Fernet.generate_key()`); only a token made with the
+server's real key is accepted by the real server.
+
+```bash
+export FERNET_KEY="<urlsafe-base64 32-byte key>"
+
+# Match the original's EC level + version automatically, verify the round trip:
+python qr_tool/generate.py "Harshit Chhabi 24BCI0098" \
+    --match-image sentinel_qr_0007.png -o out.png --print-url --verify
+
+# Or set the EC level / version explicitly:
+python qr_tool/generate.py "..." --ec M --version 9 -o out.png
+```
+
+- `--match-image <ref>` detects the reference QR's EC level (via zxing-cpp)
+  and version (via module count) and reuses them. `sentinel_qr_0007` is
+  **EC=M, version 9 (53×53)**.
+- `--verify` does a no-server round trip: encrypt → write QR → decode it back
+  → decrypt locally with the same key → confirm it matches the input.
+- The Fernet token is emitted verbatim in the URL (its alphabet is already
+  URL-safe), matching the original's clean `cipher` value.
+
+### Tests
+
+```bash
+python qr_tool/tests/test_generate.py     # standalone
+# or: pytest qr_tool/tests/test_generate.py
+```
+
+Tests use a throwaway dummy key (never the real server key).
+
 ## Notes
 
 - Two real decoders are used: `pyzbar` (libzbar) first, OpenCV
